@@ -2,13 +2,15 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"net/url"
 	"os"
+	"os/user"
 	"runtime"
 	"strconv"
-	"github.com/go-ini/ini"
 	"strings"
-	"os/user"
-	"log"
+
+	"github.com/go-ini/ini"
 )
 
 const (
@@ -19,9 +21,11 @@ const (
 func main() {
 	args := os.Args[1:]
 	if len(args) != 3 && len(args) != 2 {
-		fmt.Println("WinSCP stored password finder\n")
+		fmt.Println("WinSCP stored password finder")
+		fmt.Println("")
 		fmt.Println("Registry:")
-		fmt.Println("  Open regedit and navigate to [HKEY_CURRENT_USER\\Software\\Martin Prikryl\\WinSCP 2\\Sessions] to get the hostname, username and encrypted password\n")
+		fmt.Println("  Open regedit and navigate to [HKEY_CURRENT_USER\\Software\\Martin Prikryl\\WinSCP 2\\Sessions] to get the hostname, username and encrypted password")
+		fmt.Println("")
 		if runtime.GOOS == "windows" {
 			fmt.Println("  Usage winscppasswd.exe <host> <username> <encrypted_password>")
 		} else {
@@ -33,14 +37,14 @@ func main() {
 		} else {
 			fmt.Println("  Usage ./winscppasswd ini [<filepath>]")
 		}
-		fmt.Printf("  Default value <filepath>: %s\n", defaultWinSCPIniFilePath());
+		fmt.Printf("  Default value <filepath>: %s\n", defaultWinSCPIniFilePath())
 		return
 	}
 	if args[0] == "ini" {
-		if (len(args) == 2) {
-			decryptIni(args[1]);
+		if len(args) == 2 {
+			decryptIni(args[1])
 		} else {
-			decryptIni(defaultWinSCPIniFilePath());
+			decryptIni(defaultWinSCPIniFilePath())
 		}
 	} else {
 		fmt.Println(decrypt(args[0], args[1], args[2]))
@@ -50,23 +54,27 @@ func main() {
 func defaultWinSCPIniFilePath() string {
 	usr, err := user.Current()
 	if err != nil {
-		log.Fatal( err )
+		log.Fatal(err)
 	}
 	return usr.HomeDir + "\\AppData\\Roaming\\winSCP.ini"
 }
 
 func decryptIni(filepath string) {
 	cfg, err := ini.InsensitiveLoad(filepath)
-	if (err != nil) {
-		panic(err);
+	if err != nil {
+		panic(err)
 	}
 
 	for _, c := range cfg.Sections() {
 		if c.HasKey("Password") {
-			fmt.Printf("%s\n", strings.TrimPrefix(c.Name(), "sessions\\"));
+			name, err := url.QueryUnescape(strings.TrimPrefix(c.Name(), "sessions\\"))
+			if err != nil {
+				panic(err)
+			}
+			fmt.Printf("%s\n", name)
 			fmt.Printf("  Hostname: %s\n", c.Key("HostName").Value())
 			fmt.Printf("  Username: %s\n", c.Key("UserName").Value())
-			fmt.Printf("  Password: %s\n", decrypt(c.Key("HostName").Value(), c.Key("UserName").Value(), c.Key("Password").Value()));
+			fmt.Printf("  Password: %s\n", decrypt(c.Key("HostName").Value(), c.Key("UserName").Value(), c.Key("Password").Value()))
 			fmt.Println("========================")
 		}
 	}
